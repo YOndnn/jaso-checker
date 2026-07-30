@@ -466,6 +466,19 @@ const AFFINITY=[
 function affinity(company,school){ const c=(company||"").toLowerCase(), s=(school||"").toLowerCase();
   return AFFINITY.find(a=>a.co.some(k=>c.includes(k))&&a.sch.some(k=>s.includes(k)))||null;
 }
+/* 문·이과 계열 판별 → 전공↔직무 매칭 보정 */
+const SCI_KW=["공학","공과","전자","전기","기계","화학","화공","컴퓨터","소프트웨어","전산","반도체","물리","수학","통계","생명","생물","바이오","의학","의예","수의","약학","간호","건축","토목","신소재","재료","항공","자동차","에너지","환경공","산업공","로봇","나노","데이터","인공지능","정보통신","정보보호","의공"];
+const HUM_KW=["경영","경제","회계","무역","행정","정치","외교","법학","법과","국문","영문","중문","일문","노문","독문","불문","서문","언어","사학","역사","철학","심리","사회","복지","교육","미디어","신문방송","언론","광고","홍보","문헌정보","관광","문화","예술","음악","미술","체육","의류","가정","식품"];
+function majorField(name){ const s=(name||"").toLowerCase();
+  if(SCI_KW.some(k=>s.includes(k))) return "sci";
+  if(HUM_KW.some(k=>s.includes(k))) return "hum";
+  return "neu"; }
+function jobField(job){ const s=(job||"").toLowerCase();
+  const sci=["개발","프론트","백엔드","안드로이드","ios","devops","인프라","보안","qa","테스트","데이터","ai","머신러닝","소프트웨어","서버","클라우드","연구","r&d","회로","설계","공정","생산","품질","제조","설비","화학","기계","반도체","전자","엔지니어"];
+  const hum=["영업","마케팅","브랜드","퍼포먼스","홍보","pr","고객","인사","hr","재무","회계","전략","경영","구매","scm","물류","법무","금융","투자","리스크","기획"];
+  if(sci.some(k=>s.includes(k))) return "sci";
+  if(hum.some(k=>s.includes(k))) return "hum";
+  return "neu"; }
 
 /* ---------- 직무별 가중치 (자소서·학점·학력·학벌·스펙) ---------- */
 const JOBCAT=[
@@ -504,8 +517,19 @@ function predict(){
   const W=AI_W||jobWeights($("#job").value);
   const spec=specScore();
   let schoolS=best?schoolTier(best.school):0, affNote="";
-  if(schoolS){ const a=affinity($("#company").value,best.school);
-    if(a){ schoolS=Math.min(100,schoolS+a.bonus); affNote=" · "+a.note+" (+"+a.bonus+")"; } }
+  if(schoolS){
+    const a=affinity($("#company").value,best.school);
+    if(a){ schoolS=Math.min(100,schoolS+a.bonus); affNote=" · "+a.note+" (+"+a.bonus+")"; }
+    // 전공↔직무 계열 매칭 보정
+    if(best.majors.length){
+      const bf=majorField((best.majors.find(m=>m.type==="주전공")||best.majors[0]).name);
+      const jf=jobField($("#job").value);
+      if(bf!=="neu"&&jf!=="neu"){
+        if(bf===jf){ schoolS=Math.min(100,schoolS+6); affNote+=" · 계열 적합 (+6)"; }
+        else{ schoolS=Math.max(0,schoolS-10); affNote+=" · 계열 불일치 (-10)"; }
+      }
+    }
+  }
   let w=0, tot=0;
   if(hasEssay){ w+=essayScore*W.essay; tot+=W.essay; }
   if(gpaScore){ w+=gpaScore*W.gpa; tot+=W.gpa; }
