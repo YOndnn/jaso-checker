@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>자소서 첨삭기 · JasoCheck</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181b22; --panel2:#1f2430; --line:#2a2f3a;
+    --txt:#e7ebf3; --sub:#9aa4b2; --accent:#5b8cff; --accent2:#8b5cff;
+    --warn:#ffb020; --err:#ff5c72; --ok:#38d39f; --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f6fb; --panel:#fff; --panel2:#f0f3f9; --line:#e2e7f0;
+           --txt:#1a1f2b; --sub:#5a6472; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Apple SD Gothic Neo",Pretendard,sans-serif;
+       background:var(--bg);color:var(--txt);line-height:1.6}
+  header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  header h1{font-size:19px;margin:0;font-weight:700;letter-spacing:-.3px}
+  header .tag{font-size:12px;color:var(--sub);background:var(--panel2);padding:3px 9px;border-radius:20px;border:1px solid var(--line)}
+  .wrap{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px 28px;max-width:1400px;margin:0 auto}
+  @media(max-width:900px){.wrap{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+  .card h2{font-size:14px;margin:0 0 12px;color:var(--sub);font-weight:600;letter-spacing:.2px;text-transform:uppercase}
+  .field{margin-bottom:12px}
+  label{display:block;font-size:13px;color:var(--sub);margin-bottom:6px}
+  input[type=text],textarea{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+       color:var(--txt);padding:12px;font-size:15px;font-family:inherit;resize:vertical}
+  textarea{min-height:340px;line-height:1.8}
+  input:focus,textarea:focus{outline:none;border-color:var(--accent)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  button{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:0;border-radius:10px;
+       padding:11px 18px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .08s,opacity .2s}
+  button:hover{opacity:.92} button:active{transform:translateY(1px)}
+  button.ghost{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+  .stat{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;text-align:center}
+  .stat b{display:block;font-size:22px;font-weight:700}
+  .stat span{font-size:11px;color:var(--sub)}
+  .score{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+  .gauge{--v:0;width:72px;height:72px;border-radius:50%;flex:0 0 auto;
+    background:conic-gradient(var(--accent) calc(var(--v)*1%),var(--line) 0);
+    display:grid;place-items:center;position:relative}
+  .gauge::before{content:"";position:absolute;inset:8px;border-radius:50%;background:var(--panel)}
+  .gauge b{position:relative;font-size:20px;font-weight:700}
+  .issues{display:flex;flex-direction:column;gap:8px;max-height:520px;overflow:auto}
+  .issue{border:1px solid var(--line);border-left-width:4px;border-radius:8px;padding:10px 12px;background:var(--panel2);font-size:14px}
+  .issue.warn{border-left-color:var(--warn)} .issue.err{border-left-color:var(--err)} .issue.info{border-left-color:var(--accent)}
+  .issue .t{font-weight:600;margin-bottom:2px} .issue .d{color:var(--sub);font-size:13px}
+  .issue mark{background:rgba(255,176,32,.22);color:inherit;padding:0 2px;border-radius:3px}
+  .empty{color:var(--sub);font-size:14px;text-align:center;padding:30px 0}
+  details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  summary{cursor:pointer;font-size:13px;color:var(--sub)}
+  .ai-out{white-space:pre-wrap;font-size:14px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:12px;min-height:60px}
+  .muted{color:var(--sub);font-size:12px;margin-top:6px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid #fff6;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .notice{display:flex;align-items:center;gap:10px;background:var(--panel2);border-bottom:1px solid var(--line);
+    padding:10px 28px;font-size:12.5px;color:var(--sub);line-height:1.5}
+  .notice b{color:var(--txt);font-weight:600}
+  .notice .lock{font-size:15px;flex:0 0 auto}
+  .prob{margin-top:14px;border-top:1px solid var(--line);padding-top:16px}
+  .prob-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px}
+  .prob-head .big{font-size:34px;font-weight:800;letter-spacing:-1px}
+  .prob-head .tier{font-size:14px;font-weight:700}
+  .bar{height:12px;border-radius:8px;background:var(--line);overflow:hidden}
+  .bar > i{display:block;height:100%;width:0;border-radius:8px;transition:width .6s ease;
+    background:linear-gradient(90deg,var(--err),var(--warn) 45%,var(--ok))}
+  .breakdown{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .breakdown div{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center;font-size:12px;color:var(--sub)}
+  .breakdown b{display:block;font-size:16px;color:var(--txt);font-weight:700;margin-top:2px}
+  select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:10px;color:var(--txt);padding:12px;font-size:15px;font-family:inherit}
+  select:focus{outline:none;border-color:var(--accent)}
+  .disc{font-size:11px;color:var(--sub);margin-top:10px;line-height:1.5}
+  .qbox{margin-top:8px;display:none;flex-direction:column;gap:6px}
+  .qitem{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:13px;cursor:pointer;transition:border-color .15s}
+  .qitem:hover{border-color:var(--accent)}
+  .qitem::before{content:"↳ ";color:var(--accent)}
+  .qsrc{font-size:11px;color:var(--sub)}
+  .btn-sm{padding:8px 12px;font-size:13px}
+  .item{border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;background:rgba(127,127,127,.03)}
+  .item .ihead{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+  .item .ihead b{font-size:13px;color:var(--accent)}
+  .item .rm{font-size:12px;color:var(--err);cursor:pointer;border:0;background:none;padding:0}
+  .item textarea{min-height:120px}
+  .item .q{margin-bottom:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>📝 자소서 첨삭기</h1>
+  <span class="tag">규칙기반 분석 + AI 첨삭</span>
+</header>
+<div class="notice">
+  <span class="lock">🔒</span>
+  <span><b>본 서비스는 지원자의 개인정보를 수집·저장하지 않습니다.</b> 입력하신 모든 정보(학력·학점·자기소개서 포함)는 이용자 브라우저에서만 처리되며 당사 서버로 전송되지 않습니다. AI 첨삭 이용 시 입력 내용은 Anthropic API로 직접 전송되며 당사는 이를 보관하지 않습니다.</span>
+</div>
+
+<datalist id="companyList">
+  <option>삼성전자</option><option>SK하이닉스</option><option>LG전자</option><option>LG디스플레이</option>
+  <option>LG화학</option><option>LG에너지솔루션</option><option>현대자동차</option><option>기아</option>
+  <option>현대모비스</option><option>포스코</option><option>삼성SDI</option><option>삼성바이오로직스</option>
+  <option>삼성SDS</option><option>삼성전기</option><option>SK이노베이션</option><option>SK텔레콤</option>
+  <option>KT</option><option>네이버</option><option>카카오</option><option>쿠팡</option>
+  <option>배달의민족(우아한형제들)</option><option>토스(비바리퍼블리카)</option><option>당근마켓</option>
+  <option>넥슨</option><option>엔씨소프트</option><option>넷마블</option><option>크래프톤</option>
+  <option>한화솔루션</option><option>한화에어로스페이스</option><option>두산에너빌리티</option><option>HD현대중공업</option>
+  <option>CJ제일제당</option><option>롯데케미칼</option><option>아모레퍼시픽</option><option>LG생활건강</option>
+  <option>GS칼텍스</option><option>S-OIL</option><option>대한항공</option><option>KB국민은행</option>
+  <option>신한은행</option><option>하나은행</option><option>우리은행</option><option>삼성물산</option>
+</datalist>
+<datalist id="jobList">
+  <option>소프트웨어 개발</option><option>프론트엔드 개발</option><option>백엔드 개발</option><option>안드로이드 개발</option>
+  <option>iOS 개발</option><option>데이터 분석</option><option>데이터 엔지니어링</option><option>AI/머신러닝</option>
+  <option>DevOps/인프라</option><option>보안(정보보안)</option><option>QA/테스트</option><option>반도체 공정기술</option>
+  <option>반도체 설계(회로설계)</option><option>반도체 패키지</option><option>전자회로 설계</option><option>기계설계</option>
+  <option>생산기술</option><option>생산관리</option><option>품질관리(QA/QC)</option><option>화학공정</option>
+  <option>R&D 연구개발</option><option>UX/UI 디자인</option><option>프로덕트 매니저(PM)</option><option>서비스 기획</option>
+  <option>영업</option><option>해외영업</option><option>영업관리</option><option>마케팅</option>
+  <option>브랜드 마케팅</option><option>퍼포먼스 마케팅</option><option>인사(HR)</option><option>재무/회계</option>
+  <option>전략기획</option><option>경영지원</option><option>구매</option><option>SCM/물류</option>
+  <option>법무</option><option>홍보(PR)</option><option>CS/고객경험</option><option>데이터 사이언티스트</option>
+</datalist>
+
+<div class="wrap">
+  <!-- 입력 -->
+  <section class="card">
+    <h2>입력</h2>
+    <div class="row">
+      <div class="field" style="flex:1;min-width:140px">
+        <label>회사명 <span style="color:var(--sub);font-weight:400">🔍 검색·입력</span></label>
+        <input type="text" id="company" list="companyList" placeholder="회사명 검색 또는 입력" autocomplete="off" />
+      </div>
+      <div class="field" style="flex:1;min-width:140px">
+        <label>직무 <span style="color:var(--sub);font-weight:400">🔍 검색·입력</span></label>
+        <input type="text" id="job" list="jobList" placeholder="직무 검색 또는 입력" autocomplete="off" />
+      </div>
+    </div>
+    <div class="row">
+      <div class="field" style="flex:1;min-width:120px">
+        <label>학력</label>
+        <select id="edu">
+          <option value="">선택</option>
+          <option value="60">고등학교 졸업</option>
+          <option value="72">전문학사</option>
+          <option value="85" selected>학사</option>
+          <option value="92">석사</option>
+          <option value="100">박사</option>
+        </select>
+      </div>
+      <div class="field" style="flex:1;min-width:90px">
+        <label>학점</label>
+        <input type="text" id="gpa" placeholder="예) 3.8" inputmode="decimal" />
+      </div>
+      <div class="field" style="flex:0 0 90px">
+        <label>만점</label>
+        <select id="gpaMax">
+          <option value="4.5" selected>4.5</option>
+          <option value="4.3">4.3</option>
+          <option value="4.0">4.0</option>
+        </select>
+      </div>
+    </div>
+    <label>자기소개서 문항 (여러 개 가능)</label>
+    <div id="items"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="ghost btn-sm" id="addBtn">＋ 문항 추가</button>
+      <button class="ghost btn-sm" id="fetchBtn">🔎 실제 문항 불러오기</button>
+    </div>
+    <div class="qbox" id="qbox"></div>
+    <div class="row">
+      <button id="analyzeBtn">규칙 분석</button>
+      <button class="ghost" id="sampleBtn">예시 넣기</button>
+      <button class="ghost" id="clearBtn">비우기</button>
+    </div>
+
+    <details>
+      <summary>⚙️ AI 심층 첨삭 설정 (Claude API)</summary>
+      <div class="field" style="margin-top:10px">
+        <label>Anthropic API Key (브라우저에만 저장, 서버 전송 X)</label>
+        <input type="text" id="apiKey" placeholder="sk-ant-..." autocomplete="off" />
+      </div>
+      <p class="muted">키는 <code>localStorage</code>에만 보관됩니다. 공용 PC에선 사용 후 비우세요.</p>
+    </details>
+  </section>
+
+  <!-- 결과 -->
+  <section class="card">
+    <h2>진단 결과</h2>
+    <div class="score">
+      <div class="gauge" id="gauge"><b id="scoreNum">–</b></div>
+      <div>
+        <div style="font-weight:700;font-size:16px" id="grade">분석 대기 중</div>
+        <div class="muted" id="gradeDesc">본문을 입력하고 분석하기를 누르세요.</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b id="stChar">0</b><span>공백제외 글자</span></div>
+      <div class="stat"><b id="stCharSp">0</b><span>공백포함</span></div>
+      <div class="stat"><b id="stSent">0</b><span>문장 수</span></div>
+      <div class="stat"><b id="stAvg">0</b><span>평균 문장길이</span></div>
+    </div>
+
+    <div class="issues" id="issues">
+      <div class="empty">아직 진단 항목이 없습니다.</div>
+    </div>
+
+    <div class="prob" id="prob" hidden>
+      <div class="prob-head">
+        <span>🎯 예상 합격 확률</span>
+        <span class="tier" id="probTier"></span>
+      </div>
+      <div class="prob-head" style="margin-bottom:6px">
+        <span class="big" id="probNum">0%</span>
+      </div>
+      <div class="bar"><i id="probBar"></i></div>
+      <div class="breakdown">
+        <div>자소서<b id="bdEssay">–</b></div>
+        <div>학점<b id="bdGpa">–</b></div>
+        <div>학력<b id="bdEdu">–</b></div>
+      </div>
+      <p class="disc">※ 본 수치는 입력값 기반의 통계적 추정치이며 실제 합격을 보장하지 않습니다. 기업·전형·경쟁률에 따라 결과는 달라질 수 있습니다.</p>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <button id="probBtn">🎯 합격 확률 예측</button>
+      <button id="gapBtn">🧭 역량 갭 분석</button>
+      <button id="aiBtn">🤖 AI 첨삭</button>
+    </div>
+    <div class="ai-out" id="gapOut" hidden></div>
+    <div class="ai-out" id="aiOut" hidden></div>
+  </section>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+
+/* ---------- 다중 문항 관리 ---------- */
+function addItem(q="",a=""){
+  const box=$("#items"), el=document.createElement("div");
+  el.className="item";
+  el.innerHTML=`<div class="ihead"><b class="tag-n"></b><button class="rm" type="button">삭제</button></div>
+    <input class="q" type="text" placeholder="문항 (예: 지원 동기를 기술하시오)" />
+    <textarea class="a" placeholder="해당 문항의 답변을 입력하세요..."></textarea>`;
+  el.querySelector(".q").value=q; el.querySelector(".a").value=a;
+  el.querySelector(".rm").onclick=()=>{ if($$(".item").length>1){ el.remove(); renumber(); } };
+  box.appendChild(el); renumber();
+}
+function renumber(){ $$(".item .tag-n").forEach((b,i)=>b.textContent="문항 "+(i+1)); }
+function items(){ return $$(".item").map(el=>({q:el.querySelector(".q").value.trim(), a:el.querySelector(".a").value.trim()})); }
+function combinedEssay(){ return items().map(i=>i.a).filter(Boolean).join("\n\n"); }
+
+/* ---------- 규칙 사전 ---------- */
+const CLICHE = ["최선을 다하겠","열정을 가지고","열정을 다해","뼈를 묻","항상 노력하","성실하게 임하",
+  "밑거름이 되","초석이 되","불철주야","맡은 바 소임","작은 거인","엄격하지만 자상","화목한 가정",
+  "엄격한 아버지","자상한 어머니","되고 싶습니다만","적극적인 자세로","꼼꼼한 성격"];
+const VAGUE = ["등등","여러 가지","다양한 경험","많은 것을 배","좋은 경험","무언가","어느 정도","약간","조금","나름"];
+const HEDGES = ["것 같습니다","라고 생각합니다","인 것 같","듯합니다","해보고 싶","싶은 마음"];
+const PASSIVE = /(되어지|지게 되|하여지|되어진|보여지|불려지|잊혀지)/g;   // 이중피동
+const CONJ = ["그리고","그래서","하지만","그러나","또한","그런데","따라서"];
+
+/* ---------- 분석 엔진 ---------- */
+function analyze(text){
+  const issues=[];
+  const clean=text.trim();
+  const charSp=clean.length;
+  const charNo=clean.replace(/\s/g,"").length;
+  const sents=clean.split(/(?<=[.!?]|다\.|요\.)\s+|\n+/).map(s=>s.trim()).filter(Boolean);
+  const sentN=sents.length;
+  const avg=sentN?Math.round(charNo/sentN):0;
+
+  const add=(type,t,d)=>issues.push({type,t,d});
+
+  // 1) 분량
+  if(charNo<300) add("warn","분량 부족",`공백제외 ${charNo}자. 통상 500~700자 이상을 권장합니다.`);
+  if(charNo>1600) add("info","분량 과다",`${charNo}자. 문항 제한을 초과하지 않는지 확인하세요.`);
+
+  // 2) 긴 문장
+  sents.forEach((s,i)=>{ const l=s.replace(/\s/g,"").length;
+    if(l>=90) add("warn","긴 문장",`${i+1}번째 문장이 ${l}자입니다. 두 문장으로 나누면 가독성이 좋아집니다. <mark>${esc(s.slice(0,40))}…</mark>`);
+  });
+
+  // 3) 상투어
+  hit(clean,CLICHE).forEach(w=>add("err","상투적 표현",`"<mark>${w}</mark>" — 구체적 경험·수치로 대체하세요.`));
+  // 4) 모호한 표현
+  hit(clean,VAGUE).forEach(w=>add("warn","모호한 표현",`"<mark>${w}</mark>" — 무엇을·얼마나를 구체화하세요.`));
+  // 5) 소극적 어미
+  hit(clean,HEDGES).forEach(w=>add("warn","자신감 부족 어미",`"<mark>${w}</mark>" — 단정형으로 바꾸면 신뢰감이 높아집니다.`));
+  // 6) 이중피동
+  const pv=clean.match(PASSIVE); if(pv) add("err","이중 피동",`"<mark>${[...new Set(pv)].join(", ")}</mark>" — 능동/단일피동으로 수정하세요.`);
+  // 7) 접속사 남용
+  CONJ.forEach(c=>{ const n=(clean.match(new RegExp(c,"g"))||[]).length;
+    if(n>=4) add("info","접속사 남용",`"${c}" ${n}회 — 접속사를 줄이면 문장이 단단해집니다.`); });
+  // 8) 반복 단어
+  repeats(clean).forEach(([w,n])=>add("info","단어 반복",`"<mark>${w}</mark>" ${n}회 — 유의어로 분산하세요.`));
+  // 9) 첫 문장 훅
+  if(sents[0] && CLICHE.some(c=>sents[0].includes(c)))
+    add("warn","약한 첫 문장","도입부가 상투적입니다. 강렬한 경험·질문·수치로 시작하세요.");
+
+  // 점수
+  let score=100;
+  issues.forEach(i=>score-=({err:12,warn:6,info:2})[i.type]);
+  if(charNo<300) score-=10;
+  score=Math.max(0,Math.min(100,score));
+
+  return {charSp,charNo,sentN,avg,issues,score};
+}
+const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+function hit(text,list){return list.filter(w=>text.includes(w));}
+function repeats(text){
+  const words=text.replace(/[^가-힣\s]/g,"").split(/\s+/).filter(w=>w.length>=2);
+  const m={}; words.forEach(w=>m[w]=(m[w]||0)+1);
+  return Object.entries(m).filter(([w,n])=>n>=5).sort((a,b)=>b[1]-a[1]).slice(0,4);
+}
+
+/* ---------- 렌더 ---------- */
+function render(r){
+  $("#stChar").textContent=r.charNo;
+  $("#stCharSp").textContent=r.charSp;
+  $("#stSent").textContent=r.sentN;
+  $("#stAvg").textContent=r.avg+"자";
+  const g=$("#gauge"); g.style.setProperty("--v",r.score);
+  $("#scoreNum").textContent=r.score;
+  const [grade,desc]= r.score>=85?["우수 ✨","다듬을 곳이 적습니다."]
+    : r.score>=70?["양호 👍","몇 가지만 보완하면 좋습니다."]
+    : r.score>=50?["보통 ✍️","구체성·표현을 손보세요."]
+    : ["보완 필요 🛠️","전반적 재작성을 권장합니다."];
+  $("#grade").textContent=grade; $("#gradeDesc").textContent=desc;
+
+  const box=$("#issues");
+  if(!r.issues.length){ box.innerHTML='<div class="empty">👏 특별한 지적 사항이 없습니다.</div>'; return; }
+  const order={err:0,warn:1,info:2};
+  box.innerHTML=r.issues.sort((a,b)=>order[a.type]-order[b.type])
+    .map(i=>`<div class="issue ${i.type}"><div class="t">${i.t}</div><div class="d">${i.d}</div></div>`).join("");
+}
+
+/* ---------- 합격 확률 예측 ---------- */
+function predict(){
+  const essay=combinedEssay();
+  if(!essay){ alert("답변을 입력하세요."); return; }
+  const r=analyze(essay); render(r);
+  const eduV=+($("#edu").value||0);
+  const gpa=parseFloat($("#gpa").value);
+  const gpaMax=parseFloat($("#gpaMax").value)||4.5;
+  const gpaScore=(!isNaN(gpa)&&gpa>0)?Math.max(0,Math.min(100,gpa/gpaMax*100)):0;
+  const essayScore=r.score;
+
+  // 가중 합산 (자소서 40 · 학점 35 · 학력 25) 후 로지스틱 보정
+  let w=0, tot=0;
+  w+=essayScore*0.40; tot+=0.40;
+  if(gpaScore){ w+=gpaScore*0.35; tot+=0.35; }
+  if(eduV){ w+=eduV*0.25; tot+=0.25; }
+  const weighted=tot?w/tot:0;
+  const p=Math.round(100/(1+Math.exp(-0.09*(weighted-55))));
+
+  $("#prob").hidden=false;
+  $("#probNum").textContent=p+"%";
+  $("#probBar").style.width=p+"%";
+  $("#bdEssay").textContent=Math.round(essayScore);
+  $("#bdGpa").textContent=gpaScore?gpaScore.toFixed(0):"–";
+  $("#bdEdu").textContent=eduV||"–";
+  const [tier,color]= p>=75?["매우 높음","var(--ok)"]:p>=60?["높음","var(--ok)"]
+    :p>=45?["보통","var(--warn)"]:p>=30?["낮음","var(--warn)"]:["매우 낮음","var(--err)"];
+  const t=$("#probTier"); t.textContent=tier; t.style.color=color; $("#probNum").style.color=color;
+}
+
+/* ---------- AI 첨삭 (웹검색 기반) ---------- */
+async function callClaude(key,messages){
+  const res=await fetch("https://api.anthropic.com/v1/messages",{
+    method:"POST",
+    headers:{"content-type":"application/json","x-api-key":key,
+      "anthropic-version":"2023-06-01","anthropic-dangerous-direct-browser-access":"true"},
+    body:JSON.stringify({model:"claude-opus-5",max_tokens:2500,
+      tools:[{type:"web_search_20260209",name:"web_search",max_uses:6}],
+      messages})
+  });
+  const data=await res.json();
+  if(!res.ok) throw new Error(data.error?.message||("HTTP "+res.status));
+  return data;
+}
+async function runClaude(key,prompt,statusEl,btn){
+  const messages=[{role:"user",content:prompt}];
+  btn.disabled=true;
+  let data, guard=0;
+  do{
+    data=await callClaude(key,messages);
+    messages.push({role:"assistant",content:data.content});
+  }while(data.stop_reason==="pause_turn" && ++guard<4);
+  btn.disabled=false;
+  return data.content.filter(c=>c.type==="text").map(c=>c.text).join("\n").trim();
+}
+
+async function aiReview(){
+  const key=$("#apiKey").value.trim();
+  const list=items().filter(i=>i.a);
+  const company=$("#company").value.trim();
+  const job=$("#job").value.trim();
+  const out=$("#aiOut"); out.hidden=false;
+  if(!list.length){ out.textContent="답변을 먼저 입력하세요."; return; }
+  if(!key){ out.textContent="AI 첨삭은 설정에서 Claude API 키가 필요합니다. (규칙기반 분석은 키 없이 작동)"; return; }
+  const btn=$("#aiBtn"); out.innerHTML='<span class="spin"></span> Claude가 웹검색·첨삭 중... (최대 1분)';
+
+  const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(문항 미기재)"}\n[답변 ${i+1}]\n${it.a}`).join("\n\n");
+  const prompt=`너는 한국 기업 채용 자기소개서 첨삭 전문가다. web_search 도구로 아래를 조사한 뒤 첨삭하라.\n\n`+
+    `[지원 정보]\n회사: ${company||"(미기재)"}\n직무: ${job||"(미기재)"}\n\n`+
+    `[조사 항목]\n`+
+    `1) "${company} 인재상 핵심가치" 검색\n`+
+    `2) "${company} ${job} 요구역량 채용" 검색\n\n`+
+    `[제출 문항·답변]\n${body}\n\n`+
+    `[출력] 한국어·간결히:\n`+
+    `■ 이 직무에서 좋은 자소서란 (조사한 인재상·역량 근거로 기준 3가지 스스로 정의)\n`+
+    `■ 문항별 첨삭 — 각 문항마다: 총평 1문장 / 강점 1개 / 개선점 2개(근거+수정예시) / 문항 적합성 점수(10점)\n`+
+    `■ 전체 총평 2문장`;
+  try{ out.textContent=await runClaude(key,prompt,out,btn)||"(응답 없음)"; }
+  catch(e){ out.textContent="⚠️ 오류: "+e.message; btn.disabled=false; }
+}
+
+/* ---------- 역량 갭 분석 ---------- */
+async function gapAnalyze(){
+  const key=$("#apiKey").value.trim();
+  const list=items().filter(i=>i.a);
+  const company=$("#company").value.trim();
+  const job=$("#job").value.trim();
+  const out=$("#gapOut"); out.hidden=false;
+  if(!company){ out.textContent="회사명을 입력하세요."; return; }
+  if(!list.length){ out.textContent="답변을 먼저 입력하세요."; return; }
+  if(!key){ out.textContent="역량 분석은 설정에서 Claude API 키가 필요합니다."; return; }
+  const btn=$("#gapBtn"); out.innerHTML='<span class="spin"></span> 요구 역량 조사·대조 중... (최대 1분)';
+
+  const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(미기재)"}\n${it.a}`).join("\n\n");
+  const prompt=`너는 채용 역량 분석 전문가다. web_search로 "${company} 인재상", "${company} ${job} 직무 요구역량 자격요건 채용공고"를 조사한 뒤 아래 자소서를 대조하라.\n\n`+
+    `[지원자 자소서]\n${body}\n\n`+
+    `[출력] 한국어·간결히:\n`+
+    `■ ${company} ${job||"직무"} 핵심 요구 역량 (5개, 각 한 줄 · 근거 출처 표기)\n`+
+    `■ 지원자가 보유한 역량 (자소서 근거 문장 인용, 최대 3개)\n`+
+    `■ 부족·미흡 역량 (3개 — 왜 부족한지 + 보완할 경험·서술 방법)\n`+
+    `■ 역량 적합도 (0~100%) 한 줄 + 한 줄 코멘트`;
+  try{ out.textContent=await runClaude(key,prompt,out,btn)||"(응답 없음)"; }
+  catch(e){ out.textContent="⚠️ 오류: "+e.message; btn.disabled=false; }
+}
+
+/* ---------- 실제 문항 불러오기 ---------- */
+async function fetchQuestions(){
+  const key=$("#apiKey").value.trim();
+  const company=$("#company").value.trim();
+  const job=$("#job").value.trim();
+  const box=$("#qbox");
+  if(!company){ alert("회사명을 입력하세요."); return; }
+  if(!key){ alert("문항 수집은 설정에서 Claude API 키가 필요합니다."); return; }
+  const btn=$("#fetchBtn"); const orig=btn.textContent;
+  btn.innerHTML='<span class="spin"></span> 검색 중...';
+  box.style.display="flex"; box.innerHTML='<div class="qsrc">실제 문항을 웹에서 찾는 중...</div>';
+
+  const yr=new Date().getFullYear();
+  const prompt=`너는 채용 자기소개서 문항 조사원이다. web_search로 "${company} ${job} 자기소개서 문항 ${yr}", "${company} 자소서 항목" 등을 검색해 `+
+    `${company}${job?` ${job} 직무`:""}의 실제 자소서 문항을 찾아라.\n`+
+    `규칙: 검색으로 확인된 문항만, 추측 금지. 각 문항을 한 줄씩 정확히 "- 문항내용 (글자수 제한 있으면 표기)" 형식으로 출력. `+
+    `마지막 줄에 "출처: (사이트·연도)" 표기. 문항을 못 찾으면 "- (검색 결과 없음)" 한 줄만 출력.`;
+  try{
+    const text=await runClaude(key,prompt,box,btn);
+    const qs=text.split("\n").filter(l=>l.trim().startsWith("- ")).map(l=>l.trim().slice(2).trim());
+    const src=(text.split("\n").find(l=>l.trim().startsWith("출처"))||"").trim();
+    box.innerHTML="";
+    if(!qs.length || qs[0].includes("검색 결과 없음")){ box.innerHTML='<div class="qsrc">문항을 찾지 못했습니다. 직접 입력하세요.</div>'; }
+    else{
+      const hint=document.createElement("div"); hint.className="qsrc"; hint.textContent="클릭하면 문항으로 추가됩니다:"; box.appendChild(hint);
+      qs.forEach(q=>{ const d=document.createElement("div"); d.className="qitem"; d.textContent=q;
+        d.onclick=()=>{ const last=$$(".item").pop(); const lq=last?.querySelector(".q");
+          if(last && !lq.value){ lq.value=q; } else { addItem(q); } };
+        box.appendChild(d); });
+      if(src){ const s=document.createElement("div"); s.className="qsrc"; s.textContent=src; box.appendChild(s); }
+    }
+  }catch(e){ box.innerHTML='<div class="qsrc">⚠️ '+e.message+'</div>'; }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+
+/* ---------- 이벤트 ---------- */
+const SAMPLE=`저는 어릴 적부터 엄격한 아버지와 자상한 어머니 밑에서 성실하게 자랐습니다. 대학 시절 다양한 경험을 통해 많은 것을 배웠고, 항상 최선을 다하겠다는 마음가짐으로 여러 가지 활동에 참여하였으며 그 과정에서 팀워크의 중요성을 느끼게 되었고 리더십도 기를 수 있었던 것 같습니다. 입사 후에도 열정을 가지고 맡은 바 소임을 다하여 회사의 밑거름이 되고 싶습니다.`;
+$("#analyzeBtn").onclick=()=>{ const t=combinedEssay();
+  if(!t){ alert("답변을 입력하세요."); return; } render(analyze(t)); };
+$("#addBtn").onclick=()=>addItem();
+$("#fetchBtn").onclick=fetchQuestions;
+$("#sampleBtn").onclick=()=>{ $("#items").innerHTML=""; $("#qbox").style.display="none";
+  addItem("본인의 성장 과정과 지원 동기를 기술하시오.",SAMPLE); addItem("입사 후 포부를 기술하시오.","");
+  $("#company").value="삼성전자"; $("#job").value="반도체 공정기술"; $("#gpa").value="3.8"; render(analyze(SAMPLE)); };
+$("#clearBtn").onclick=()=>{ $("#items").innerHTML=""; addItem(); $("#qbox").style.display="none";
+  ["company","job","gpa"].forEach(id=>$("#"+id).value=""); $("#issues").innerHTML='<div class="empty">아직 진단 항목이 없습니다.</div>'; $("#prob").hidden=true; };
+$("#probBtn").onclick=predict;
+$("#gapBtn").onclick=gapAnalyze;
+$("#aiBtn").onclick=aiReview;
+addItem(); // 초기 문항 1개
+
+// API 키 저장/복원
+const KK="jaso_api_key";
+$("#apiKey").value=localStorage.getItem(KK)||"";
+$("#apiKey").oninput=e=>localStorage.setItem(KK,e.target.value.trim());
+</script>
+</body>
+</html>
