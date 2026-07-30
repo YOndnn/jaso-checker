@@ -116,6 +116,20 @@
   <option>GS칼텍스</option><option>S-OIL</option><option>대한항공</option><option>KB국민은행</option>
   <option>신한은행</option><option>하나은행</option><option>우리은행</option><option>삼성물산</option>
 </datalist>
+<datalist id="certList">
+  <option>정보처리기사</option><option>정보처리산업기사</option><option>SQLD</option><option>ADsP</option>
+  <option>빅데이터분석기사</option><option>컴퓨터활용능력 1급</option><option>리눅스마스터</option><option>정보보안기사</option>
+  <option>전기기사</option><option>전기산업기사</option><option>화공기사</option><option>산업안전기사</option>
+  <option>기계설계기사</option><option>품질경영기사</option><option>6시그마(GB)</option><option>6시그마(BB)</option>
+  <option>한국사능력검정 1급</option><option>KBS한국어능력시험</option><option>운전면허 1종</option><option>사회조사분석사 2급</option>
+  <option>재무위험관리사(FRM)</option><option>투자자산운용사</option><option>AWS Solutions Architect</option><option>SQLP</option>
+</datalist>
+<datalist id="langList">
+  <option>TOEIC</option><option>TOEIC Speaking</option><option>OPIc</option><option>TOEFL</option>
+  <option>IELTS</option><option>TEPS</option><option>New TEPS</option><option>JLPT</option>
+  <option>JPT</option><option>HSK</option><option>DELE</option><option>DELF</option>
+  <option>TestDaF</option><option>FLEX</option><option>SNULT</option>
+</datalist>
 <datalist id="schoolList">
   <option>서울대학교</option><option>연세대학교</option><option>고려대학교</option><option>KAIST</option>
   <option>POSTECH</option><option>성균관대학교</option><option>한양대학교</option><option>서강대학교</option>
@@ -159,6 +173,24 @@
     <div id="edus"></div>
     <div class="row" style="margin-bottom:12px">
       <button class="ghost btn-sm" id="addEduBtn">＋ 학력 추가</button>
+    </div>
+
+    <label>자격증 · 수상 (여러 개 가능)</label>
+    <div id="certs"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="ghost btn-sm" id="addCertBtn">＋ 자격증 추가</button>
+    </div>
+
+    <label>어학 능력 (여러 개 가능)</label>
+    <div id="langs"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="ghost btn-sm" id="addLangBtn">＋ 어학 추가</button>
+    </div>
+
+    <label>경력 사항 (여러 개 가능)</label>
+    <div id="exps"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="ghost btn-sm" id="addExpBtn">＋ 경력 추가</button>
     </div>
     <label>자기소개서 문항 (여러 개 가능)</label>
     <div id="items"></div>
@@ -214,10 +246,11 @@
         <span class="big" id="probNum">0%</span>
       </div>
       <div class="bar"><i id="probBar"></i></div>
-      <div class="breakdown">
+      <div class="breakdown" style="grid-template-columns:repeat(4,1fr)">
         <div>자소서<b id="bdEssay">–</b></div>
         <div>학점<b id="bdGpa">–</b></div>
         <div>학력<b id="bdEdu">–</b></div>
+        <div>부가스펙<b id="bdSpec">–</b></div>
       </div>
       <p class="disc">※ 본 수치는 입력값 기반의 통계적 추정치이며 실제 합격을 보장하지 않습니다. 기업·전형·경쟁률에 따라 결과는 달라질 수 있습니다.</p>
     </div>
@@ -245,7 +278,7 @@ function addItem(q="",a=""){
     <input class="q" type="text" placeholder="문항 (예: 지원 동기를 기술하시오)" />
     <textarea class="a" placeholder="해당 문항의 답변을 입력하세요..."></textarea>`;
   el.querySelector(".q").value=q; el.querySelector(".a").value=a;
-  el.querySelector(".rm").onclick=()=>{ if($$(".item").length>1){ el.remove(); renumber(); } };
+  el.querySelector(".rm").onclick=()=>{ el.remove(); renumber(); };
   box.appendChild(el); renumber();
 }
 function renumber(){ $$(".item .tag-n").forEach((b,i)=>b.textContent="문항 "+(i+1)); }
@@ -292,6 +325,32 @@ function academic(){ const e=edus(); if(!e.length) return "(학력 미기재)";
   return e.map((x,i)=>`학력${i+1}: ${x.school||"(학교 미기재)"} / ${x.eduLabel&&x.eduLabel!=="선택"?x.eduLabel:"학위 미기재"}`+
     ` / 전공: ${x.majors.map(m=>m.type+" "+m.name).join(", ")||"(미기재)"} / 학점: ${x.gpa?x.gpa+"/"+x.gpaMax:"미기재"}`).join("\n"); }
 function bestEdu(){ return edus().reduce((a,b)=>(b.eduVal>=(a?a.eduVal:0)?b:a),null); }
+
+/* ---------- 자격증·어학·경력 (범용 다중 행) ---------- */
+function addRow(boxId,html){
+  const box=$("#"+boxId), el=document.createElement("div"); el.className="edu-row";
+  el.innerHTML=html+`<button class="erm rrm" type="button">삭제</button>`;
+  el.querySelector(".rrm").onclick=()=>{ if(box.children.length>1) el.remove(); };
+  box.appendChild(el); return el;
+}
+const addCert=()=>addRow("certs",`<div class="f" style="flex:1;min-width:170px"><span>자격증/수상명 🔍</span><input class="cn" list="certList" placeholder="예) 정보처리기사" autocomplete="off"></div><div class="f" style="flex:0 0 110px"><span>취득일(선택)</span><input class="cd" placeholder="2025.03"></div>`);
+const addLang=()=>addRow("langs",`<div class="f" style="flex:0 0 150px"><span>시험 🔍</span><input class="ln" list="langList" placeholder="예) TOEIC" autocomplete="off"></div><div class="f" style="flex:1;min-width:120px"><span>점수/등급</span><input class="ls" placeholder="예) 920 / IH"></div>`);
+const addExp=()=>addRow("exps",`<div class="f" style="flex:1;min-width:130px"><span>회사/기관</span><input class="xo" placeholder="예) OO전자"></div><div class="f" style="flex:1;min-width:120px"><span>역할/직무</span><input class="xr" placeholder="예) 인턴·공정개발"></div><div class="f" style="flex:0 0 100px"><span>기간</span><input class="xp" placeholder="예) 6개월"></div>`);
+const certs=()=>$$("#certs .edu-row").map(r=>({name:r.querySelector(".cn").value.trim(),date:r.querySelector(".cd").value.trim()})).filter(c=>c.name);
+const langs=()=>$$("#langs .edu-row").map(r=>({name:r.querySelector(".ln").value.trim(),score:r.querySelector(".ls").value.trim()})).filter(l=>l.name);
+const exps=()=>$$("#exps .edu-row").map(r=>({org:r.querySelector(".xo").value.trim(),role:r.querySelector(".xr").value.trim(),period:r.querySelector(".xp").value.trim()})).filter(x=>x.org||x.role);
+
+function profile(){
+  const p=[academic()];
+  const c=certs(); if(c.length) p.push("자격증/수상: "+c.map(x=>x.name+(x.date?`(${x.date})`:"")).join(", "));
+  const l=langs(); if(l.length) p.push("어학: "+l.map(x=>x.name+(x.score?` ${x.score}`:"")).join(", "));
+  const e=exps(); if(e.length) p.push("경력: "+e.map(x=>[x.org,x.role,x.period].filter(Boolean).join(" ")).join(" / "));
+  return p.join("\n");
+}
+function specScore(){ // 부가 스펙 점수 (0~100, 체감 상한)
+  const c=certs().length, l=langs().length, x=exps().length;
+  return Math.min(100, c*22 + l*26 + x*26);
+}
 
 /* ---------- 규칙 사전 ---------- */
 const CLICHE = ["최선을 다하겠","열정을 가지고","열정을 다해","뼈를 묻","항상 노력하","성실하게 임하",
@@ -380,29 +439,33 @@ function render(r){
 /* ---------- 합격 확률 예측 ---------- */
 function predict(){
   const essay=combinedEssay();
-  if(!essay){ alert("답변을 입력하세요."); return; }
-  const r=analyze(essay); render(r);
+  const hasEssay=!!essay;
+  let essayScore=0;
+  if(hasEssay){ const r=analyze(essay); render(r); essayScore=r.score; }
   const best=bestEdu();
   const eduV=best?best.eduVal:0;
   const gpa=best?parseFloat(best.gpa):NaN;
   const gpaMax=best?parseFloat(best.gpaMax)||4.5:4.5;
   const gpaScore=(!isNaN(gpa)&&gpa>0)?Math.max(0,Math.min(100,gpa/gpaMax*100)):0;
-  const essayScore=r.score;
 
-  // 가중 합산 (자소서 40 · 학점 35 · 학력 25) 후 로지스틱 보정
+  // 가중 합산 (자소서 35 · 학점 25 · 학력 20 · 부가스펙 20) 후 로지스틱 보정
+  const spec=specScore();
   let w=0, tot=0;
-  w+=essayScore*0.40; tot+=0.40;
-  if(gpaScore){ w+=gpaScore*0.35; tot+=0.35; }
-  if(eduV){ w+=eduV*0.25; tot+=0.25; }
-  const weighted=tot?w/tot:0;
+  if(hasEssay){ w+=essayScore*0.35; tot+=0.35; }
+  if(gpaScore){ w+=gpaScore*0.25; tot+=0.25; }
+  if(eduV){ w+=eduV*0.20; tot+=0.20; }
+  if(spec){ w+=spec*0.20; tot+=0.20; }
+  if(!tot){ alert("자소서 답변 또는 학력·스펙 중 하나 이상 입력하세요."); return; }
+  const weighted=w/tot;
   const p=Math.round(100/(1+Math.exp(-0.09*(weighted-55))));
 
   $("#prob").hidden=false;
   $("#probNum").textContent=p+"%";
   $("#probBar").style.width=p+"%";
-  $("#bdEssay").textContent=Math.round(essayScore);
+  $("#bdEssay").textContent=hasEssay?Math.round(essayScore):"–";
   $("#bdGpa").textContent=gpaScore?gpaScore.toFixed(0):"–";
   $("#bdEdu").textContent=eduV||"–";
+  $("#bdSpec").textContent=spec||"–";
   const [tier,color]= p>=75?["매우 높음","var(--ok)"]:p>=60?["높음","var(--ok)"]
     :p>=45?["보통","var(--warn)"]:p>=30?["낮음","var(--warn)"]:["매우 낮음","var(--err)"];
   const t=$("#probTier"); t.textContent=tier; t.style.color=color; $("#probNum").style.color=color;
@@ -446,7 +509,7 @@ async function aiReview(){
 
   const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(문항 미기재)"}\n[답변 ${i+1}]\n${it.a}`).join("\n\n");
   const prompt=`너는 한국 기업 채용 자기소개서 첨삭 전문가다. web_search 도구로 아래를 조사한 뒤 첨삭하라.\n\n`+
-    `[지원 정보]\n회사: ${company||"(미기재)"}\n직무: ${job||"(미기재)"}\n${academic()}\n\n`+
+    `[지원 정보]\n회사: ${company||"(미기재)"}\n직무: ${job||"(미기재)"}\n${profile()}\n\n`+
     `[조사 항목]\n`+
     `1) "${company} 인재상 핵심가치" 검색\n`+
     `2) "${company} ${job} 요구역량 채용" 검색\n\n`+
@@ -473,7 +536,7 @@ async function gapAnalyze(){
 
   const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(미기재)"}\n${it.a}`).join("\n\n");
   const prompt=`너는 채용 역량 분석 전문가다. web_search로 "${company} 인재상", "${company} ${job} 직무 요구역량 자격요건 채용공고"를 조사한 뒤 아래 자소서를 대조하라.\n\n`+
-    `[지원자 학력·전공]\n${academic()}\n\n`+
+    `[지원자 학력·전공]\n${profile()}\n\n`+
     `[지원자 자소서]\n${body}\n\n`+
     `[출력] 한국어·간결히:\n`+
     `■ ${company} ${job||"직무"} 핵심 요구 역량 (5개, 각 한 줄 · 근거 출처 표기)\n`+
@@ -525,17 +588,24 @@ $("#analyzeBtn").onclick=()=>{ const t=combinedEssay();
   if(!t){ alert("답변을 입력하세요."); return; } render(analyze(t)); };
 $("#addBtn").onclick=()=>addItem();
 $("#addEduBtn").onclick=()=>addEdu();
+$("#addCertBtn").onclick=addCert;
+$("#addLangBtn").onclick=addLang;
+$("#addExpBtn").onclick=addExp;
 $("#fetchBtn").onclick=fetchQuestions;
 $("#sampleBtn").onclick=()=>{ $("#items").innerHTML=""; $("#edus").innerHTML=""; $("#qbox").style.display="none";
   addItem("본인의 성장 과정과 지원 동기를 기술하시오.",SAMPLE); addItem("입사 후 포부를 기술하시오.","");
   addEdu({school:"서울대학교",eduVal:"85",gpa:"3.8",gpaMax:"4.5",majors:[{type:"주전공",name:"전기정보공학"},{type:"복수전공",name:"컴퓨터공학"}]});
+  ["certs","langs","exps"].forEach(id=>$("#"+id).innerHTML=""); addCert(); addLang(); addExp();
+  $("#certs .cn").value="정보처리기사"; $("#langs .ln").value="TOEIC"; $("#langs .ls").value="920";
+  $("#exps .xo").value="OO전자"; $("#exps .xr").value="공정기술 인턴"; $("#exps .xp").value="6개월";
   $("#company").value="삼성전자"; $("#job").value="반도체 공정기술"; render(analyze(SAMPLE)); };
-$("#clearBtn").onclick=()=>{ $("#items").innerHTML=""; addItem(); $("#edus").innerHTML=""; addEdu(); $("#qbox").style.display="none";
+$("#clearBtn").onclick=()=>{ ["items","edus","certs","langs","exps"].forEach(id=>$("#"+id).innerHTML="");
+  addItem(); addEdu(); addCert(); addLang(); addExp(); $("#qbox").style.display="none";
   ["company","job"].forEach(id=>$("#"+id).value=""); $("#issues").innerHTML='<div class="empty">아직 진단 항목이 없습니다.</div>'; $("#prob").hidden=true; };
 $("#probBtn").onclick=predict;
 $("#gapBtn").onclick=gapAnalyze;
 $("#aiBtn").onclick=aiReview;
-addItem(); addEdu(); // 초기 문항·학력 1개
+addItem(); addEdu(); addCert(); addLang(); addExp(); // 초기 각 1행
 
 // API 키 저장/복원
 const KK="jaso_api_key";
