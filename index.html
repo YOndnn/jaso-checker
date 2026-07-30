@@ -86,6 +86,11 @@
   .item .rm{font-size:12px;color:var(--err);cursor:pointer;border:0;background:none;padding:0}
   .item textarea{min-height:120px}
   .item .q{margin-bottom:8px}
+  .edu-row{display:flex;gap:8px;align-items:flex-end;margin-bottom:8px;flex-wrap:wrap}
+  .edu-row .f{display:flex;flex-direction:column;gap:4px}
+  .edu-row .f span{font-size:11px;color:var(--sub)}
+  .edu-row .erm{flex:0 0 auto;color:var(--err);background:none;border:0;cursor:pointer;font-size:12px;padding:12px 4px}
+  .edu-row input,.edu-row select{padding:9px 10px;font-size:14px}
 </style>
 </head>
 <body>
@@ -110,6 +115,16 @@
   <option>CJ제일제당</option><option>롯데케미칼</option><option>아모레퍼시픽</option><option>LG생활건강</option>
   <option>GS칼텍스</option><option>S-OIL</option><option>대한항공</option><option>KB국민은행</option>
   <option>신한은행</option><option>하나은행</option><option>우리은행</option><option>삼성물산</option>
+</datalist>
+<datalist id="schoolList">
+  <option>서울대학교</option><option>연세대학교</option><option>고려대학교</option><option>KAIST</option>
+  <option>POSTECH</option><option>성균관대학교</option><option>한양대학교</option><option>서강대학교</option>
+  <option>중앙대학교</option><option>경희대학교</option><option>한국외국어대학교</option><option>서울시립대학교</option>
+  <option>이화여자대학교</option><option>건국대학교</option><option>동국대학교</option><option>홍익대학교</option>
+  <option>국민대학교</option><option>숭실대학교</option><option>세종대학교</option><option>아주대학교</option>
+  <option>인하대학교</option><option>부산대학교</option><option>경북대학교</option><option>전남대학교</option>
+  <option>전북대학교</option><option>충남대학교</option><option>충북대학교</option><option>UNIST</option>
+  <option>GIST</option><option>DGIST</option><option>가천대학교</option><option>단국대학교</option>
 </datalist>
 <datalist id="jobList">
   <option>소프트웨어 개발</option><option>프론트엔드 개발</option><option>백엔드 개발</option><option>안드로이드 개발</option>
@@ -139,29 +154,11 @@
       </div>
     </div>
     <div class="row">
-      <div class="field" style="flex:1;min-width:120px">
-        <label>학력</label>
-        <select id="edu">
-          <option value="">선택</option>
-          <option value="60">고등학교 졸업</option>
-          <option value="72">전문학사</option>
-          <option value="85" selected>학사</option>
-          <option value="92">석사</option>
-          <option value="100">박사</option>
-        </select>
-      </div>
-      <div class="field" style="flex:1;min-width:90px">
-        <label>학점</label>
-        <input type="text" id="gpa" placeholder="예) 3.8" inputmode="decimal" />
-      </div>
-      <div class="field" style="flex:0 0 90px">
-        <label>만점</label>
-        <select id="gpaMax">
-          <option value="4.5" selected>4.5</option>
-          <option value="4.3">4.3</option>
-          <option value="4.0">4.0</option>
-        </select>
-      </div>
+    </div>
+    <label>학력 (여러 개 가능 · 전공 포함)</label>
+    <div id="edus"></div>
+    <div class="row" style="margin-bottom:12px">
+      <button class="ghost btn-sm" id="addEduBtn">＋ 학력 추가</button>
     </div>
     <label>자기소개서 문항 (여러 개 가능)</label>
     <div id="items"></div>
@@ -254,6 +251,47 @@ function addItem(q="",a=""){
 function renumber(){ $$(".item .tag-n").forEach((b,i)=>b.textContent="문항 "+(i+1)); }
 function items(){ return $$(".item").map(el=>({q:el.querySelector(".q").value.trim(), a:el.querySelector(".a").value.trim()})); }
 function combinedEssay(){ return items().map(i=>i.a).filter(Boolean).join("\n\n"); }
+/* ---------- 다중 학력·전공 관리 ---------- */
+function addMajor(box,type="주전공",name=""){
+  const el=document.createElement("div"); el.className="major-row edu-row";
+  el.innerHTML=`<div class="f" style="flex:0 0 100px"><span>전공 유형</span>
+      <select class="mt"><option>주전공</option><option>복수전공</option><option>부전공</option><option>연계전공</option></select></div>
+    <div class="f" style="flex:1;min-width:130px"><span>전공명</span><input class="mn" placeholder="예) 컴퓨터공학" autocomplete="off"></div>
+    <button class="erm mrm" type="button">삭제</button>`;
+  el.querySelector(".mt").value=type; el.querySelector(".mn").value=name;
+  el.querySelector(".mrm").onclick=()=>{ if(box.children.length>1) el.remove(); };
+  box.appendChild(el);
+}
+function addEdu(d={}){
+  const el=document.createElement("div"); el.className="eblock";
+  el.style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px";
+  el.innerHTML=`<div class="edu-row">
+      <div class="f" style="flex:2;min-width:140px"><span>학교명 🔍</span><input class="es" list="schoolList" placeholder="학교명 검색·입력" autocomplete="off"></div>
+      <div class="f" style="flex:0 0 108px"><span>학위</span><select class="ee">
+        <option value="">선택</option><option value="60">고등학교 졸업</option><option value="72">전문학사</option>
+        <option value="85">학사</option><option value="92">석사</option><option value="100">박사</option></select></div>
+      <div class="f" style="flex:0 0 72px"><span>학점</span><input class="eg" placeholder="3.8" inputmode="decimal"></div>
+      <div class="f" style="flex:0 0 72px"><span>만점</span><select class="em"><option>4.5</option><option>4.3</option><option>4.0</option></select></div>
+      <button class="erm ermv" type="button">학력 삭제</button>
+    </div>
+    <div class="majors"></div>
+    <button class="ghost btn-sm addmajor" type="button" style="margin-bottom:2px">＋ 전공 추가</button>`;
+  el.querySelector(".es").value=d.school||""; el.querySelector(".ee").value=d.eduVal||"85";
+  el.querySelector(".eg").value=d.gpa||""; if(d.gpaMax) el.querySelector(".em").value=d.gpaMax;
+  const mbox=el.querySelector(".majors");
+  el.querySelector(".ermv").onclick=()=>{ if($$("#edus .eblock").length>1) el.remove(); };
+  el.querySelector(".addmajor").onclick=()=>addMajor(mbox);
+  $("#edus").appendChild(el);
+  (d.majors&&d.majors.length?d.majors:[{}]).forEach(m=>addMajor(mbox,m.type,m.name));
+}
+function edus(){ return $$("#edus .eblock").map(b=>{ const s=b.querySelector(".ee");
+  return { school:b.querySelector(".es").value.trim(), eduVal:+(s.value||0),
+    eduLabel:(s.options[s.selectedIndex]?.text||""), gpa:b.querySelector(".eg").value.trim(), gpaMax:b.querySelector(".em").value,
+    majors:[...b.querySelectorAll(".major-row")].map(m=>({type:m.querySelector(".mt").value,name:m.querySelector(".mn").value.trim()})).filter(m=>m.name) }; }); }
+function academic(){ const e=edus(); if(!e.length) return "(학력 미기재)";
+  return e.map((x,i)=>`학력${i+1}: ${x.school||"(학교 미기재)"} / ${x.eduLabel&&x.eduLabel!=="선택"?x.eduLabel:"학위 미기재"}`+
+    ` / 전공: ${x.majors.map(m=>m.type+" "+m.name).join(", ")||"(미기재)"} / 학점: ${x.gpa?x.gpa+"/"+x.gpaMax:"미기재"}`).join("\n"); }
+function bestEdu(){ return edus().reduce((a,b)=>(b.eduVal>=(a?a.eduVal:0)?b:a),null); }
 
 /* ---------- 규칙 사전 ---------- */
 const CLICHE = ["최선을 다하겠","열정을 가지고","열정을 다해","뼈를 묻","항상 노력하","성실하게 임하",
@@ -344,9 +382,10 @@ function predict(){
   const essay=combinedEssay();
   if(!essay){ alert("답변을 입력하세요."); return; }
   const r=analyze(essay); render(r);
-  const eduV=+($("#edu").value||0);
-  const gpa=parseFloat($("#gpa").value);
-  const gpaMax=parseFloat($("#gpaMax").value)||4.5;
+  const best=bestEdu();
+  const eduV=best?best.eduVal:0;
+  const gpa=best?parseFloat(best.gpa):NaN;
+  const gpaMax=best?parseFloat(best.gpaMax)||4.5:4.5;
   const gpaScore=(!isNaN(gpa)&&gpa>0)?Math.max(0,Math.min(100,gpa/gpaMax*100)):0;
   const essayScore=r.score;
 
@@ -407,7 +446,7 @@ async function aiReview(){
 
   const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(문항 미기재)"}\n[답변 ${i+1}]\n${it.a}`).join("\n\n");
   const prompt=`너는 한국 기업 채용 자기소개서 첨삭 전문가다. web_search 도구로 아래를 조사한 뒤 첨삭하라.\n\n`+
-    `[지원 정보]\n회사: ${company||"(미기재)"}\n직무: ${job||"(미기재)"}\n\n`+
+    `[지원 정보]\n회사: ${company||"(미기재)"}\n직무: ${job||"(미기재)"}\n${academic()}\n\n`+
     `[조사 항목]\n`+
     `1) "${company} 인재상 핵심가치" 검색\n`+
     `2) "${company} ${job} 요구역량 채용" 검색\n\n`+
@@ -434,6 +473,7 @@ async function gapAnalyze(){
 
   const body=list.map((it,i)=>`[문항 ${i+1}] ${it.q||"(미기재)"}\n${it.a}`).join("\n\n");
   const prompt=`너는 채용 역량 분석 전문가다. web_search로 "${company} 인재상", "${company} ${job} 직무 요구역량 자격요건 채용공고"를 조사한 뒤 아래 자소서를 대조하라.\n\n`+
+    `[지원자 학력·전공]\n${academic()}\n\n`+
     `[지원자 자소서]\n${body}\n\n`+
     `[출력] 한국어·간결히:\n`+
     `■ ${company} ${job||"직무"} 핵심 요구 역량 (5개, 각 한 줄 · 근거 출처 표기)\n`+
@@ -484,16 +524,18 @@ const SAMPLE=`저는 어릴 적부터 엄격한 아버지와 자상한 어머니
 $("#analyzeBtn").onclick=()=>{ const t=combinedEssay();
   if(!t){ alert("답변을 입력하세요."); return; } render(analyze(t)); };
 $("#addBtn").onclick=()=>addItem();
+$("#addEduBtn").onclick=()=>addEdu();
 $("#fetchBtn").onclick=fetchQuestions;
-$("#sampleBtn").onclick=()=>{ $("#items").innerHTML=""; $("#qbox").style.display="none";
+$("#sampleBtn").onclick=()=>{ $("#items").innerHTML=""; $("#edus").innerHTML=""; $("#qbox").style.display="none";
   addItem("본인의 성장 과정과 지원 동기를 기술하시오.",SAMPLE); addItem("입사 후 포부를 기술하시오.","");
-  $("#company").value="삼성전자"; $("#job").value="반도체 공정기술"; $("#gpa").value="3.8"; render(analyze(SAMPLE)); };
-$("#clearBtn").onclick=()=>{ $("#items").innerHTML=""; addItem(); $("#qbox").style.display="none";
-  ["company","job","gpa"].forEach(id=>$("#"+id).value=""); $("#issues").innerHTML='<div class="empty">아직 진단 항목이 없습니다.</div>'; $("#prob").hidden=true; };
+  addEdu({school:"서울대학교",eduVal:"85",gpa:"3.8",gpaMax:"4.5",majors:[{type:"주전공",name:"전기정보공학"},{type:"복수전공",name:"컴퓨터공학"}]});
+  $("#company").value="삼성전자"; $("#job").value="반도체 공정기술"; render(analyze(SAMPLE)); };
+$("#clearBtn").onclick=()=>{ $("#items").innerHTML=""; addItem(); $("#edus").innerHTML=""; addEdu(); $("#qbox").style.display="none";
+  ["company","job"].forEach(id=>$("#"+id).value=""); $("#issues").innerHTML='<div class="empty">아직 진단 항목이 없습니다.</div>'; $("#prob").hidden=true; };
 $("#probBtn").onclick=predict;
 $("#gapBtn").onclick=gapAnalyze;
 $("#aiBtn").onclick=aiReview;
-addItem(); // 초기 문항 1개
+addItem(); addEdu(); // 초기 문항·학력 1개
 
 // API 키 저장/복원
 const KK="jaso_api_key";
