@@ -245,11 +245,13 @@
       <div class="prob-head" style="margin-bottom:6px">
         <span class="big" id="probNum">0%</span>
       </div>
+      <div class="qsrc" id="probWeight" style="margin:-2px 0 8px"></div>
       <div class="bar"><i id="probBar"></i></div>
-      <div class="breakdown" style="grid-template-columns:repeat(4,1fr)">
+      <div class="breakdown" style="grid-template-columns:repeat(5,1fr)">
         <div>자소서<b id="bdEssay">–</b></div>
         <div>학점<b id="bdGpa">–</b></div>
         <div>학력<b id="bdEdu">–</b></div>
+        <div>학벌<b id="bdSchool">–</b></div>
         <div>부가스펙<b id="bdSpec">–</b></div>
       </div>
       <p class="disc">※ 본 수치는 입력값 기반의 통계적 추정치이며 실제 합격을 보장하지 않습니다. 기업·전형·경쟁률에 따라 결과는 달라질 수 있습니다.</p>
@@ -257,6 +259,7 @@
 
     <div class="row" style="margin-top:14px">
       <button id="probBtn">🎯 합격 확률 예측</button>
+      <button class="ghost" id="aiwBtn">🧠 AI 맞춤 가중치</button>
       <button id="gapBtn">🧭 역량 갭 분석</button>
       <button id="aiBtn">🤖 AI 첨삭</button>
     </div>
@@ -269,6 +272,7 @@
 "use strict";
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
+let AI_W = null; // AI 맞춤 가중치 (있으면 프리셋보다 우선)
 
 /* ---------- 다중 문항 관리 ---------- */
 function addItem(q="",a=""){
@@ -436,6 +440,54 @@ function render(r){
     .map(i=>`<div class="issue ${i.type}"><div class="t">${i.t}</div><div class="d">${i.d}</div></div>`).join("");
 }
 
+/* ---------- 학벌(학교 티어) 점수 ---------- */
+const SCHOOL_TIER=[
+  [100,["서울대","kaist","한국과학기술원","postech","포항공"]],
+  [92,["연세대","고려대"]],
+  [84,["성균관대","한양대","서강대","unist","울산과학기술","gist","광주과학기술","dgist","대구경북과학"]],
+  [77,["중앙대","경희대","한국외","외국어대","시립대","이화여"]],
+  [70,["건국대","동국대","홍익대","국민대","숭실대","세종대","아주대","인하대"]],
+  [64,["부산대","경북대","전남대","전북대","충남대","충북대","경상대","강원대","제주대"]],
+  [58,["가천대","단국대"]],
+];
+function schoolTier(name){ const s=(name||"").toLowerCase();
+  for(const [v,ks] of SCHOOL_TIER) if(ks.some(k=>s.includes(k))) return v;
+  return name?60:0; // 목록 외 대학 60, 미기재 0(제외)
+}
+/* 기업별 재단·전통 연고 학교 → 학벌 점수 보너스 */
+const AFFINITY=[
+  {co:["삼성"],            sch:["성균관"],          bonus:12, note:"성균관대·삼성 재단 연고"},
+  {co:["포스코","posco"],  sch:["postech","포항공"], bonus:12, note:"POSTECH·포스코 재단"},
+  {co:["두산"],            sch:["중앙대"],          bonus:12, note:"중앙대·두산 재단"},
+  {co:["대한항공","한진"],  sch:["인하대"],          bonus:12, note:"인하대·한진 재단"},
+  {co:["현대","기아"],     sch:["한양대","국민대","아주대"], bonus:8, note:"현대차 계열 전통 강세"},
+  {co:["lg"],              sch:["연세대"],          bonus:6, note:"LG 계열 전통 선호"},
+];
+function affinity(company,school){ const c=(company||"").toLowerCase(), s=(school||"").toLowerCase();
+  return AFFINITY.find(a=>a.co.some(k=>c.includes(k))&&a.sch.some(k=>s.includes(k)))||null;
+}
+
+/* ---------- 직무별 가중치 (자소서·학점·학력·학벌·스펙) ---------- */
+const JOBCAT=[
+  {label:"연구·설계/R&D",   kw:["연구","r&d","회로","전자회로","반도체 설계","설계"],
+    w:{essay:22,gpa:26,edu:18,school:14,spec:20}},
+  {label:"생산·공정·품질",  kw:["공정","생산","품질","제조","설비","화학공정","패키지"],
+    w:{essay:27,gpa:22,edu:16,school:15,spec:20}},
+  {label:"개발·데이터",     kw:["개발","프론트","백엔드","안드로이드","ios","devops","인프라","보안","qa","테스트","데이터","ai","머신러닝","소프트웨어","서버","클라우드"],
+    w:{essay:25,gpa:13,edu:12,school:10,spec:40}},
+  {label:"디자인·기획·PM",  kw:["디자인","ux","ui","프로덕트","pm","서비스 기획"],
+    w:{essay:30,gpa:8,edu:12,school:10,spec:40}},
+  {label:"영업·마케팅·홍보", kw:["영업","마케팅","브랜드","퍼포먼스","홍보","pr","cs","고객"],
+    w:{essay:38,gpa:8,edu:12,school:12,spec:30}},
+  {label:"경영·관리·금융",  kw:["인사","hr","재무","회계","전략","경영","구매","scm","물류","법무","금융","투자","리스크"],
+    w:{essay:30,gpa:16,edu:16,school:18,spec:20}},
+];
+function jobWeights(job){
+  const s=(job||"").toLowerCase();
+  const c=JOBCAT.find(c=>c.kw.some(k=>s.includes(k)));
+  return c?{label:c.label,...c.w}:{label:"일반(기본)",essay:30,gpa:20,edu:15,school:15,spec:20};
+}
+
 /* ---------- 합격 확률 예측 ---------- */
 function predict(){
   const essay=combinedEssay();
@@ -448,16 +500,22 @@ function predict(){
   const gpaMax=best?parseFloat(best.gpaMax)||4.5:4.5;
   const gpaScore=(!isNaN(gpa)&&gpa>0)?Math.max(0,Math.min(100,gpa/gpaMax*100)):0;
 
-  // 가중 합산 (자소서 35 · 학점 25 · 학력 20 · 부가스펙 20) 후 로지스틱 보정
+  // 직무별 가중치 (AI 맞춤이 있으면 우선, 없으면 직무군 프리셋)
+  const W=AI_W||jobWeights($("#job").value);
   const spec=specScore();
+  let schoolS=best?schoolTier(best.school):0, affNote="";
+  if(schoolS){ const a=affinity($("#company").value,best.school);
+    if(a){ schoolS=Math.min(100,schoolS+a.bonus); affNote=" · "+a.note+" (+"+a.bonus+")"; } }
   let w=0, tot=0;
-  if(hasEssay){ w+=essayScore*0.35; tot+=0.35; }
-  if(gpaScore){ w+=gpaScore*0.25; tot+=0.25; }
-  if(eduV){ w+=eduV*0.20; tot+=0.20; }
-  if(spec){ w+=spec*0.20; tot+=0.20; }
+  if(hasEssay){ w+=essayScore*W.essay; tot+=W.essay; }
+  if(gpaScore){ w+=gpaScore*W.gpa; tot+=W.gpa; }
+  if(eduV){ w+=eduV*W.edu; tot+=W.edu; }
+  if(schoolS){ w+=schoolS*W.school; tot+=W.school; }
+  if(spec){ w+=spec*W.spec; tot+=W.spec; }
   if(!tot){ alert("자소서 답변 또는 학력·스펙 중 하나 이상 입력하세요."); return; }
   const weighted=w/tot;
   const p=Math.round(100/(1+Math.exp(-0.09*(weighted-55))));
+  $("#probWeight").textContent=`적용 가중치: ${W.label} · 자소서${W.essay} 학점${W.gpa} 학력${W.edu} 학벌${W.school} 스펙${W.spec}`+affNote;
 
   $("#prob").hidden=false;
   $("#probNum").textContent=p+"%";
@@ -465,6 +523,7 @@ function predict(){
   $("#bdEssay").textContent=hasEssay?Math.round(essayScore):"–";
   $("#bdGpa").textContent=gpaScore?gpaScore.toFixed(0):"–";
   $("#bdEdu").textContent=eduV||"–";
+  $("#bdSchool").textContent=schoolS||"–";
   $("#bdSpec").textContent=spec||"–";
   const [tier,color]= p>=75?["매우 높음","var(--ok)"]:p>=60?["높음","var(--ok)"]
     :p>=45?["보통","var(--warn)"]:p>=30?["낮음","var(--warn)"]:["매우 낮음","var(--err)"];
@@ -520,6 +579,27 @@ async function aiReview(){
     `■ 전체 총평 2문장`;
   try{ out.textContent=await runClaude(key,prompt,out,btn)||"(응답 없음)"; }
   catch(e){ out.textContent="⚠️ 오류: "+e.message; btn.disabled=false; }
+}
+
+/* ---------- AI 맞춤 가중치 (방식 B) ---------- */
+async function aiWeights(){
+  const key=$("#apiKey").value.trim(), company=$("#company").value.trim(), job=$("#job").value.trim();
+  if(!job){ alert("직무를 입력하세요."); return; }
+  if(!key){ alert("AI 맞춤 가중치는 설정에서 Claude API 키가 필요합니다."); return; }
+  const btn=$("#aiwBtn"), orig=btn.textContent; btn.innerHTML='<span class="spin"></span> 산정 중...';
+  const prompt=`너는 채용 평가 설계자다. web_search로 "${company} ${job} 채용공고 자격요건 우대사항"을 조사해, `+
+    `이 회사·직무의 서류 합격에서 각 요소의 상대적 중요도를 정수 가중치로 배분하라(합계 정확히 100).\n`+
+    `요소: essay(자소서), gpa(학점), edu(학위), school(학벌·출신학교), spec(자격증·어학·경력).\n`+
+    `한국 채용 현실과 검색된 공고를 반영하라.\n`+
+    `출력은 정확히 이 한 줄로 시작: WEIGHTS: essay=NN gpa=NN edu=NN school=NN spec=NN\n그 아래 근거 1~2줄.`;
+  try{
+    const t=await runClaude(key,prompt,null,btn);
+    const m=t.match(/essay=(\d+)[^]*?gpa=(\d+)[^]*?edu=(\d+)[^]*?school=(\d+)[^]*?spec=(\d+)/);
+    if(!m){ alert("가중치 파싱 실패 — 다시 시도하세요."); return; }
+    AI_W={label:"AI 맞춤 ("+job+")",essay:+m[1],gpa:+m[2],edu:+m[3],school:+m[4],spec:+m[5]};
+    predict();
+  }catch(e){ alert("오류: "+e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
 }
 
 /* ---------- 역량 갭 분석 ---------- */
@@ -600,10 +680,12 @@ $("#sampleBtn").onclick=()=>{ $("#items").innerHTML=""; $("#edus").innerHTML="";
   $("#exps .xo").value="OO전자"; $("#exps .xr").value="공정기술 인턴"; $("#exps .xp").value="6개월";
   $("#company").value="삼성전자"; $("#job").value="반도체 공정기술"; render(analyze(SAMPLE)); };
 $("#clearBtn").onclick=()=>{ ["items","edus","certs","langs","exps"].forEach(id=>$("#"+id).innerHTML="");
-  addItem(); addEdu(); addCert(); addLang(); addExp(); $("#qbox").style.display="none";
+  addItem(); addEdu(); addCert(); addLang(); addExp(); $("#qbox").style.display="none"; AI_W=null;
   ["company","job"].forEach(id=>$("#"+id).value=""); $("#issues").innerHTML='<div class="empty">아직 진단 항목이 없습니다.</div>'; $("#prob").hidden=true; };
 $("#probBtn").onclick=predict;
+$("#aiwBtn").onclick=aiWeights;
 $("#gapBtn").onclick=gapAnalyze;
+$("#job").addEventListener("change",()=>{ AI_W=null; }); // 직무 바뀌면 AI 맞춤 초기화
 $("#aiBtn").onclick=aiReview;
 addItem(); addEdu(); addCert(); addLang(); addExp(); // 초기 각 1행
 
